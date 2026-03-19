@@ -8,7 +8,11 @@ import hashlib
 
 from ...models.profile import Profile, Resume
 from ...models.job import Job
-from ..clients.openai import OpenAIClient
+from ..clients.fallback import premium_model_chain
+from ...core.cache import cache
+from ...core.database import db_manager
+from ...models.job import Job
+from ..clients.fallback import premium_model_chain
 from ..clients.anthropic import AnthropicClient
 from .prompt import RESUME_ADAPTATION_PROMPT, SUMMARY_ADAPTATION_PROMPT
 from ...core.cache import cache
@@ -18,12 +22,13 @@ from ...core.storage import storage_manager
 logger = logging.getLogger(__name__)
 
 
+
+
 class ResumeAdapter:
     """Generate tailored resumes for specific jobs."""
     
     def __init__(self):
-        self.client = OpenAIClient("gpt-4o")  # Use strong model for resumes
-        self.cheap_client = OpenAIClient("gpt-4o-mini")
+        self.client = premium_model_chain()  # OpenAI → Anthropic → OpenRouter fallback
     
     async def generate_tailored_resume(self, job: Job, profile: Profile) -> Dict[str, Any]:
         """Generate a tailored resume for a specific job."""

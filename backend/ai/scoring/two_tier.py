@@ -7,8 +7,14 @@ from datetime import datetime
 
 from ...models.job import Job
 from ...models.profile import Profile
+from ..clients.fallback import FallbackChain
+from .prompt import CHEAP_SCORING_PROMPT, JOB_SCORING_PROMPT, SCORE_CACHE_KEY
+from ...core.cache import cache
+from ...models.profile import Profile
 from ..clients.base import AIClient
-from ..clients.openai import OpenAIClient
+from ..clients.base import AIClient
+from ..clients.fallback import FallbackChain
+from .prompt import CHEAP_SCORING_PROMPT,JOB_SCORING_PROMPT,SCORE_CACHE_KEY
 from ..clients.anthropic import AnthropicClient
 from .prompt import JOB_SCORING_PROMPT, CHEAP_SCORING_PROMPT
 from ...core.cache import cache
@@ -27,15 +33,18 @@ class JobScorer:
     CLEAR_ACCEPT = 80
     
     def __init__(self):
-        # Initialize cheap model (always available)
-        self.cheap_model = OpenAIClient("gpt-4o-mini")
+        # Cheap model with fallback: OpenAI → OpenRouter
+        self.cheap_model = FallbackChain([
+            ("openai", "gpt-4o-mini"),
+            ("openrouter", "google/gemini-2.0-flash-thinking-exp-01-21"),
+        ])
         
-        # Premium model (only used for ambiguous cases)
-        self.premium_model = None
-        if settings.OPENAI_API_KEY:
-            self.premium_model = OpenAIClient("gpt-4o")
-        elif settings.ANTHROPIC_API_KEY:
-            self.premium_model = AnthropicClient("claude-3-sonnet")
+        # Premium model with fallback: OpenAI → Anthropic → OpenRouter
+        self.premium_model = FallbackChain([
+            ("openai", "gpt-4o"),
+            ("anthropic", "claude-3-sonnet"),
+            ("openrouter", "google/gemini-2.0-flash-thinking-exp-01-21"),
+        ])
     
     async def score_job(self, job: Job, profile: Profile) -> Dict[str, Any]:
         """Score a job using two-tier approach."""

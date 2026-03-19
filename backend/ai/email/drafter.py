@@ -9,7 +9,7 @@ import hashlib
 from ...models.job import Job
 from ...models.profile import Profile
 from ...models.application import Application
-from ..clients.openai import OpenAIClient
+from ..clients.fallback import cheap_model_chain
 from .prompt import (
     COVER_LETTER_PROMPT, INITIAL_OUTREACH_PROMPT,
     FOLLOW_UP_PROMPT, THANK_YOU_PROMPT, EMAIL_CACHE_KEY
@@ -23,7 +23,7 @@ class EmailDrafter:
     """Generate personalized emails for job applications."""
     
     def __init__(self):
-        self.client = OpenAIClient("gpt-4o-mini")  # Use cheap model for emails
+        self.client =cheap_model_chain()   # Use cheap model for emails
     
     async def draft_cover_letter(self, job: Job, profile: Profile) -> Dict[str, str]:
         """Draft a cover letter for a job application."""

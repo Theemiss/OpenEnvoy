@@ -75,6 +75,11 @@ class ProfileUpdate(BaseModel):
     languages: Optional[List[str]] = None
     tools: Optional[List[str]] = None
     domains: Optional[List[str]] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+
+
 
 
 class ProfileResponse(ProfileBase):

@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -32,7 +32,6 @@ JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
 def create_access_token(data: dict) -> str:
     """Create JWT access token."""
     from jose import jwt
-    import time
 
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
@@ -149,7 +148,7 @@ async def login(credentials: UserLogin, session: AsyncSession = Depends(get_db))
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
-    session: AsyncSession = Depends(get_db), authorization: Optional[str] = None
+    session: AsyncSession = Depends(get_db), authorization: Optional[str] = Header(None)
 ):
     """Get current user from token."""
     from jose import jwt, JWTError

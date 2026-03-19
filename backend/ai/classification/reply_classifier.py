@@ -5,7 +5,12 @@ import logging
 from typing import Dict, Any, Optional
 import re
 
-from ..clients.openai import OpenAIClient
+from ..clients.fallback import cheap_model_chain
+from .prompt import REPLY_CLASSIFICATION_PROMPT, ACTION_EXTRACTION_PROMPT
+from ...core.cache import cache
+from .prompt import REPLY_CLASSIFICATION_PROMPT, ACTION_EXTRACTION_PROMPT
+from ...core.cache import cache
+
 from ..clients.anthropic import AnthropicClient
 from .prompt import REPLY_CLASSIFICATION_PROMPT, ACTION_EXTRACTION_PROMPT
 from ...core.cache import cache
@@ -17,8 +22,7 @@ class ReplyClassifier:
     """Classify recruiter email replies."""
     
     def __init__(self):
-        self.client = OpenAIClient("gpt-4o-mini")  # Use cheap model
-    
+        self.client = cheap_model_chain()  # OpenAI → OpenRouter fallback
     async def classify_reply(self, body: str, subject: str = "", 
                               from_email: str = "") -> Dict[str, Any]:
         """Classify an email reply."""
