@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import GitHubProvider from 'next-auth/providers/github'
+import { authApi } from '@/lib/api/auth'
 
 export default NextAuth({
   providers: [
@@ -12,17 +13,26 @@ export default NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        // This is where you would validate credentials against your backend
-        // For demo purposes, we'll accept any email with password 'password'
-        if (credentials?.password === 'password') {
-          return {
-            id: '1',
-            name: 'John Doe',
-            email: credentials.email,
-            image: 'https://via.placeholder.com/150',
-          }
+        if (!credentials?.email || !credentials?.password) {
+          return null
         }
-        return null
+
+        try {
+          const { data } = await authApi.login({
+            email: credentials.email,
+            password: credentials.password,
+          })
+
+          return {
+            id: String(data.user.id),
+            name: data.user.full_name,
+            email: data.user.email,
+            accessToken: data.access_token,
+            role: 'user',
+          }
+        } catch {
+          return null
+        }
       },
     }),
     GoogleProvider({
@@ -38,13 +48,17 @@ export default NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.accessToken = (user as any).accessToken
+        token.role = (user as any).role || 'user'
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string
+        session.user.role = token.role as 'user' | 'admin'
       }
+      session.accessToken = token.accessToken as string | undefined
       return session
     },
   },

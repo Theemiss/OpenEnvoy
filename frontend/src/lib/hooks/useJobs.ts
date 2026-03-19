@@ -1,36 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { jobsApi } from '@/lib/api/client'
+import { jobsApi } from '@/lib/api/jobs'
+import type { Job as ApiJob, JobListResponse } from '@/lib/types/job'
 import toast from 'react-hot-toast'
 
-export interface Job {
-  id: number
-  title: string
-  company: string
-  company_url?: string
-  company_logo?: string
-  location: string | null
-  description: string
-  salary_min: number | null
-  salary_max: number | null
-  salary_currency: string | null
-  job_type: string | null
-  experience_level: string | null
-  relevance_score: number | null
-  score_reasoning: string | null
-  posted_at: string | null
-  url: string
-  source: string
-  skills?: string[]
-  requirements?: string[]
-  is_active: boolean
-}
-
-export interface JobsResponse {
-  items: Job[]
-  total: number
-  skip: number
-  limit: number
-}
+export type Job = ApiJob
+export type JobsResponse = JobListResponse
 
 export function useJobs(params?: any) {
   return useQuery<JobsResponse>({
@@ -82,5 +56,38 @@ export function useDeleteJob() {
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to delete job')
     },
+  })
+}
+
+export function useTriggerJobScan() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => jobsApi.triggerScan(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['job-scan-status'] })
+      toast.success('Job scan triggered')
+    },
+    onError: (error: any) => {
+      if (error?.response?.status === 404) {
+        toast.error('Scan endpoint is not available on backend yet')
+        return
+      }
+      toast.error(error?.response?.data?.message || 'Failed to trigger job scan')
+    },
+  })
+}
+
+export function useJobScanStatus(enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['job-scan-status'],
+    queryFn: async () => {
+      const { data } = await jobsApi.getScanStatus()
+      return data
+    },
+    enabled,
+    refetchInterval: enabled ? 15000 : false,
+    retry: false,
   })
 }

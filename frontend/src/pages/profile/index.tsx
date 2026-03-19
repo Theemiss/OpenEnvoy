@@ -37,8 +37,7 @@ export default function ProfilePage() {
     mutationFn: (file: File) => {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('is_canonical', 'true')
-      return profileApi.uploadResume(formData)
+      return profileApi.uploadResume(formData, true)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] })

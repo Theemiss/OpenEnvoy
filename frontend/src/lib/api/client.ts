@@ -85,9 +85,11 @@ export const profileApi = {
   getProfile: () => apiClient.get('/api/v1/profile'),
   updateProfile: (data: any) => apiClient.put('/api/v1/profile', data),
   getResumes: () => apiClient.get('/api/v1/profile/resumes'),
-  uploadResume: (formData: FormData) => apiClient.post('/api/v1/profile/resumes', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  uploadResume: (formData: FormData, isCanonical: boolean = true) =>
+    apiClient.post('/api/v1/profile/resumes', formData, {
+      params: { is_canonical: isCanonical },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
   deleteResume: (id: number) => apiClient.delete(`/api/v1/profile/resumes/${id}`),
 }
 

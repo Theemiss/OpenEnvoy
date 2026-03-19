@@ -1,75 +1,75 @@
 import React from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/UI/Card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/Tabs'
 import { Spinner } from '@/components/UI/Spinner'
 import { Badge } from '@/components/UI/Badge'
-import { applicationsApi } from '@/lib/api/client'
+import { Input } from '@/components/UI/Input'
+import { Select } from '@/components/UI/Select'
 import { emailsApi } from '@/lib/api/emails'
 import { useReviewQueue } from '@/lib/hooks/useReview'
 import { formatDistanceToNow } from 'date-fns'
 
-interface AppEmail {
+interface EmailItem {
   id: number
-  direction: 'inbound' | 'outbound'
+  direction: 'inbound' | 'outbound' | string
   subject: string
-  sent_at: string
-  classification?: string
-}
-
-interface ApplicationItem {
-  id: number
-  job?: {
-    title?: string
-    company?: string
-  }
-  emails?: AppEmail[]
+  sent_at: string | null
+  created_at: string
+  classification?: string | null
+  application_id: number | null
 }
 
 export default function EmailsPage() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'inbound' | 'outbound'>('all')
+
   const { data: queueStatus, isLoading: queueLoading } = useQuery({
     queryKey: ['emails-queue-status'],
     queryFn: () => emailsApi.getQueueStatus(),
     refetchInterval: 30000,
   })
 
-  const { data: applicationsResponse, isLoading: appsLoading } = useQuery({
-    queryKey: ['emails-applications'],
-    queryFn: () => applicationsApi.getApplications({ limit: 200, skip: 0 }),
+  const { data: emailsResponse, isLoading: emailsLoading } = useQuery({
+    queryKey: ['emails-list', directionFilter],
+    queryFn: () =>
+      emailsApi.listEmails({
+        limit: 200,
+        direction: directionFilter === 'all' ? undefined : directionFilter,
+      }),
   })
 
   const { data: replyReviewItems, isLoading: reviewLoading } = useReviewQueue(['email_reply'])
 
-  const applications: ApplicationItem[] = applicationsResponse?.data?.items || []
+  const allEmails: EmailItem[] = emailsResponse?.data || []
 
-  const inboundEmails = applications
-    .flatMap((app) =>
-      (app.emails || [])
-        .filter((email) => email.direction === 'inbound')
-        .map((email) => ({
-          ...email,
-          applicationId: app.id,
-          jobTitle: app.job?.title || 'Unknown role',
-          company: app.job?.company || 'Unknown company',
-        }))
+  const filteredEmails = useMemo(() => {
+    const normalized = searchTerm.trim().toLowerCase()
+    if (!normalized) return allEmails
+    return allEmails.filter((email) => {
+      const subject = email.subject?.toLowerCase() || ''
+      const classification = email.classification?.toLowerCase() || ''
+      return subject.includes(normalized) || classification.includes(normalized)
+    })
+  }, [allEmails, searchTerm])
+
+  const inboundEmails = filteredEmails
+    .filter((email) => email.direction === 'inbound')
+    .sort(
+      (a, b) =>
+        new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime()
     )
-    .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())
 
-  const outboundEmails = applications
-    .flatMap((app) =>
-      (app.emails || [])
-        .filter((email) => email.direction === 'outbound')
-        .map((email) => ({
-          ...email,
-          applicationId: app.id,
-          jobTitle: app.job?.title || 'Unknown role',
-          company: app.job?.company || 'Unknown company',
-        }))
+  const outboundEmails = filteredEmails
+    .filter((email) => email.direction === 'outbound')
+    .sort(
+      (a, b) =>
+        new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime()
     )
-    .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime())
 
-  if (appsLoading || reviewLoading || queueLoading) {
+  if (emailsLoading || reviewLoading || queueLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Spinner size="lg" />
@@ -82,6 +82,30 @@ export default function EmailsPage() {
       <div className="page-header">
         <h1 className="page-title">Email Center</h1>
       </div>
+
+      <Card>
+        <CardBody>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Input
+              placeholder="Search by subject or classification"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Select
+              value={directionFilter}
+              onChange={(e) => setDirectionFilter(e.target.value as 'all' | 'inbound' | 'outbound')}
+              options={[
+                { value: 'all', label: 'All directions' },
+                { value: 'inbound', label: 'Inbound only' },
+                { value: 'outbound', label: 'Outbound only' },
+              ]}
+            />
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+              Showing {filteredEmails.length} emails
+            </div>
+          </div>
+        </CardBody>
+      </Card>
 
       <Card>
         <CardBody>
@@ -122,26 +146,28 @@ export default function EmailsPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">No inbound recruiter replies yet.</p>
                 ) : (
                   inboundEmails.map((email) => (
-                    <div key={`${email.applicationId}-${email.id}`} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <div key={email.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="font-medium">{email.subject}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {email.jobTitle} at {email.company}
-                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Application #{email.application_id ?? 'N/A'}</p>
                         </div>
                         <Badge variant="info" size="sm">
                           {email.classification || 'unclassified'}
                         </Badge>
                       </div>
                       <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                        <span>{formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })}</span>
-                        <Link
-                          href={`/applications/${email.applicationId}`}
-                          className="text-primary-600 hover:text-primary-700"
-                        >
-                          Open application
-                        </Link>
+                        <span>{formatDistanceToNow(new Date(email.sent_at || email.created_at), { addSuffix: true })}</span>
+                        {email.application_id ? (
+                          <Link
+                            href={`/applications/${email.application_id}`}
+                            className="text-primary-600 hover:text-primary-700"
+                          >
+                            Open application
+                          </Link>
+                        ) : (
+                          <span>No application linked</span>
+                        )}
                       </div>
                     </div>
                   ))
@@ -162,19 +188,21 @@ export default function EmailsPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">No sent emails yet.</p>
                 ) : (
                   outboundEmails.map((email) => (
-                    <div key={`${email.applicationId}-${email.id}`} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                    <div key={email.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                       <p className="font-medium">{email.subject}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {email.jobTitle} at {email.company}
-                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Application #{email.application_id ?? 'N/A'}</p>
                       <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
-                        <span>{formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })}</span>
-                        <Link
-                          href={`/applications/${email.applicationId}`}
-                          className="text-primary-600 hover:text-primary-700"
-                        >
-                          Open application
-                        </Link>
+                        <span>{formatDistanceToNow(new Date(email.sent_at || email.created_at), { addSuffix: true })}</span>
+                        {email.application_id ? (
+                          <Link
+                            href={`/applications/${email.application_id}`}
+                            className="text-primary-600 hover:text-primary-700"
+                          >
+                            Open application
+                          </Link>
+                        ) : (
+                          <span>No application linked</span>
+                        )}
                       </div>
                     </div>
                   ))

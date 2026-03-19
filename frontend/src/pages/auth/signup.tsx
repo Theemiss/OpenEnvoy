@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { signIn } from 'next-auth/react'
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/UI/Card'
 import { Input } from '@/components/UI/Input'
 import { Button } from '@/components/UI/Button'
 import { Alert } from '@/components/UI/Alert'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { authApi } from '@/lib/api/auth'
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -41,38 +41,42 @@ export default function SignUpPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+      await authApi.register({
+        full_name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
       })
 
-      if (!response.ok) {
-        let message = 'Failed to create account'
-        try {
-          const payload = await response.json()
-          message = payload?.detail || payload?.message || message
-        } catch {
-          // ignore JSON parsing issues and use fallback message
-        }
-        setErrorMessage(message)
-        setIsSubmitting(false)
+      const signInResult = await signIn('credentials', {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      })
+
+      if (signInResult?.error) {
+        setSuccessMessage('Account created successfully. Redirecting to sign in...')
+        setTimeout(() => {
+          router.push(`/auth/signin?email=${encodeURIComponent(email.trim().toLowerCase())}`)
+        }, 1000)
         return
       }
 
-      setSuccessMessage('Account created successfully. Redirecting to sign in...')
-      setTimeout(() => {
-        router.push(`/auth/signin?email=${encodeURIComponent(email.trim().toLowerCase())}`)
-      }, 1000)
-    } catch {
+      setSuccessMessage('Account created successfully. Redirecting...')
+      router.push('/')
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      let message = 'Unable to create account'
+
+      if (Array.isArray(detail) && detail.length > 0) {
+        message = detail.map((d: any) => d?.msg || 'Validation error').join(', ')
+      } else if (typeof detail === 'string') {
+        message = detail
+      } else if (error?.response?.data?.message) {
+        message = error.response.data.message
+      }
+
       setErrorMessage(
-        'Unable to reach registration service. If backend auth is not enabled yet, ask your admin to configure /api/v1/auth/register.'
+        message
       )
     } finally {
       setIsSubmitting(false)

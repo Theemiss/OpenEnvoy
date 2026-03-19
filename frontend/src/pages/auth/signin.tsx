@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/router'
@@ -13,9 +13,18 @@ export default function SignInPage() {
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [hasHydratedPresetEmail, setHasHydratedPresetEmail] = useState(false)
 
   const callbackUrl = (router.query.callbackUrl as string) || '/'
   const presetEmail = (router.query.email as string) || ''
+
+  useEffect(() => {
+    if (!router.isReady) return
+    if (!hasHydratedPresetEmail && !email && presetEmail) {
+      setEmail(presetEmail)
+      setHasHydratedPresetEmail(true)
+    }
+  }, [router.isReady, presetEmail, email, hasHydratedPresetEmail])
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +61,7 @@ export default function SignInPage() {
             <Input
               label="Email"
               type="email"
-              value={email || presetEmail}
+              value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
@@ -79,7 +88,7 @@ export default function SignInPage() {
             </div>
 
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Demo credential flow accepts any email with password <code>password</code>.
+              Sign in uses your backend auth endpoint.
             </p>
 
             <div className="text-sm">

@@ -49,6 +49,16 @@ export function useApplications(params?: any) {
     queryKey: ['applications', params],
     queryFn: async () => {
       const { data } = await applicationsApi.getApplications(params)
+      if (Array.isArray(data)) {
+        const skip = Number(params?.skip || 0)
+        const limit = Number(params?.limit || data.length || 20)
+        return {
+          items: data,
+          total: data.length,
+          skip,
+          limit,
+        }
+      }
       return data
     },
   })

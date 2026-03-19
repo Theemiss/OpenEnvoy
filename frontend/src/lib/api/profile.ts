@@ -11,8 +11,9 @@ export const profileApi = {
   getResumes: () => 
     apiClient.get<Resume[]>('/api/v1/profile/resumes'),
   
-  uploadResume: (formData: FormData) => 
+  uploadResume: (formData: FormData, isCanonical: boolean = true) => 
     apiClient.post<Resume>('/api/v1/profile/resumes', formData, {
+      params: { is_canonical: isCanonical },
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   

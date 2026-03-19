@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
-import { useJobs } from '@/lib/hooks/useJobs'
+import { useJobs, useJobScanStatus, useTriggerJobScan } from '@/lib/hooks/useJobs'
 import { JobCard } from './components/JobCard'
 import { JobFilters } from './components/JobFilters'
 import { Card, CardBody } from '@/components/UI/Card'
 import { Button } from '@/components/UI/Button'
 import { Spinner } from '@/components/UI/Spinner'
+import { Alert } from '@/components/UI/Alert'
 import { EmptyState } from '@/components/Common/EmptyState'
 import { Pagination } from '@/components/Layout/Navigation'
-import { BriefcaseIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { BriefcaseIcon, ArrowPathIcon, PlayIcon } from '@heroicons/react/24/outline'
+import { formatDistanceToNow } from 'date-fns'
 
 export default function JobsPage() {
   const [filters, setFilters] = useState({
@@ -15,6 +17,8 @@ export default function JobsPage() {
     job_type: '',
     location: '',
     min_score: '',
+    sort_by: 'scraped_at',
+    sort_order: 'desc',
   })
   const [page, setPage] = useState(1)
   const limit = 10
@@ -24,6 +28,12 @@ export default function JobsPage() {
     skip: (page - 1) * limit,
     limit,
   })
+  const triggerJobScan = useTriggerJobScan()
+  const {
+    data: scanStatus,
+    error: scanStatusError,
+    isLoading: scanStatusLoading,
+  } = useJobScanStatus(true)
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -40,6 +50,8 @@ export default function JobsPage() {
       job_type: '',
       location: '',
       min_score: '',
+      sort_by: 'scraped_at',
+      sort_order: 'desc',
     })
     setPage(1)
     refetch()
@@ -57,15 +69,62 @@ export default function JobsPage() {
     <div className="space-y-8">
       <div className="page-header">
         <h1 className="page-title">Jobs</h1>
-        <Button
-          variant="outline"
-          icon={<ArrowPathIcon className="w-4 h-4" />}
-          onClick={() => refetch()}
-          loading={isRefetching}
-        >
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            icon={<ArrowPathIcon className="w-4 h-4" />}
+            onClick={() => refetch()}
+            loading={isRefetching}
+          >
+            Refresh
+          </Button>
+          <Button
+            icon={<PlayIcon className="w-4 h-4" />}
+            onClick={() => triggerJobScan.mutate()}
+            loading={triggerJobScan.isPending}
+          >
+            Run Scan
+          </Button>
+        </div>
       </div>
+
+      <Card>
+        <CardBody>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Scan Status</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {scanStatusLoading
+                  ? 'Checking...'
+                  : scanStatus?.is_running
+                    ? 'Running'
+                    : 'Idle'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Queued Jobs</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {scanStatus?.queued_jobs ?? 0}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Last Scan</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {scanStatus?.last_run_at
+                  ? formatDistanceToNow(new Date(scanStatus.last_run_at), { addSuffix: true })
+                  : 'Not available'}
+              </p>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {scanStatusError ? (
+        <Alert variant="warning">
+          Scan status endpoint is unavailable. Jobs listing/search works, but scan controls require backend
+          endpoints at <code>/api/v1/jobs/scan</code> and <code>/api/v1/jobs/scan/status</code>.
+        </Alert>
+      ) : null}
 
       {/* Filters */}
       <JobFilters
