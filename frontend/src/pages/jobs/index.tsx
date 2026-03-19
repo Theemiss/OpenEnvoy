@@ -104,7 +104,9 @@ export default function JobsPage() {
             <div>
               <p className="text-xs uppercase tracking-wide text-gray-500">Queued Jobs</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {scanStatus?.queued_jobs ?? 0}
+                {scanStatus?.recent_results
+                  ? Object.values(scanStatus.recent_results).reduce((a, b) => a + b, 0)
+                  : 0}
               </p>
             </div>
             <div>

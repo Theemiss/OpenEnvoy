@@ -83,7 +83,7 @@ export function useJobScanStatus(enabled: boolean = true) {
   return useQuery({
     queryKey: ['job-scan-status'],
     queryFn: async () => {
-      const { data } = await jobsApi.getScanStatus()
+  const { data } = await jobsApi.getScanStatus()
       return data
     },
     enabled,
