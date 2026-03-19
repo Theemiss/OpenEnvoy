@@ -1,0 +1,73 @@
+# Job filtering rules
+
+# Locations to exclude (case-insensitive partial match)
+excluded_locations:
+  - "remote india"
+  - "hybrid"
+  - "onsite only"
+  - "relocation required"
+
+# Minimum salary requirement (in USD)
+min_salary: 80000
+
+# Preferred keywords (score boost when found)
+preferred_keywords:
+  - python
+  - fastapi
+  - django
+  - react
+  - typescript
+  - aws
+  - docker
+  - kubernetes
+  - postgresql
+  - redis
+  - machine learning
+  - ai
+
+# Keywords that cause rejection
+excluded_keywords:
+  - senior
+  - lead
+  - manager
+  - director
+  - "cto"
+  - "vp of"
+  - "principal"
+  - "architect"
+  - "blockchain"
+  - "crypto"
+  - "bitcoin"
+  - "gambling"
+  - "casino"
+
+# Maximum years of experience accepted
+max_years_experience: 8
+
+# Preferred job types
+preferred_job_types:
+  - full-time
+  - permanent
+
+# Preferred locations
+preferred_locations:
+  - remote
+  - united states
+  - us
+  - usa
+  - "san francisco"
+  - "new york"
+  - "seattle"
+  - "austin"
+  - "boston"
+
+# Minimum company rating (if available)
+min_company_rating: 3.5
+
+# Exclude companies with these words in name
+excluded_companies:
+  - "consultancy"
+  - "staffing"
+  - "recruitment"
+  - "solutions"
+  - "technologies"  # Only if it's a body shop
