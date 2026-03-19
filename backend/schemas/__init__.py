@@ -1,38 +1,107 @@
-from .job import JobResponse, JobListResponse, JobFilterParams
-from .scan_run import ScanRunCreate, ScanRunResponse, ScanRunDetailResponse, ScanStatusResponse
-from .ai_model_config import AIModelConfigCreate, AIModelConfigUpdate, AIModelConfigResponse, AIModelConfigListResponse
-
-from .job import JobResponse, JobListResponse, JobFilterParams
-from .profile import ProfileResponse, ProfileUpdate, ExperienceSchema
-from .resume import ResumeResponse, ResumeCreate
-from .email import EmailResponse, EmailCreate
- 
+from .job import (
+    JobBase,
+    JobCreate,
+    JobUpdate,
+    JobResponse,
+    JobListResponse,
+    JobFilterParams,
+)
+from .scan_run import (
+    ScanRunCreate,
+    ScanRunResponse,
+    ScanRunDetailResponse,
+    ScanStatusResponse,
+)
+from .ai_model_config import (
+    AIModelConfigBase,
+    AIModelConfigCreate,
+    AIModelConfigUpdate,
+    AIModelConfigResponse,
+    AIModelConfigListResponse,
+)
+from .profile import (
+    ExperienceSchema,
+    EducationSchema,
+    ProjectSchema,
+    ProfileBase,
+    ProfileCreate,
+    ProfileUpdate,
+    ProfileResponse,
+)
+from .resume import (
+    ResumeBase,
+    ResumeCreate,
+    ResumeResponse,
+    ResumeAdaptationRequest,
+    ResumeAdaptationResponse,
+)
+from .email import (
+    EmailBase,
+    EmailCreate,
+    EmailResponse,
+    EmailDraftRequest,
+    EmailDraftResponse,
+    EmailSendRequest,
+)
+from .application import (
+    ApplicationBase,
+    ApplicationCreate,
+    ApplicationUpdate,
+    ApplicationResponse,
+    ApplicationStats,
+)
+from .auth import UserRegister, UserLogin, UserResponse, TokenResponse, TokenData
 
 __all__ = [
-       "ApplicationCreate",
-    "ApplicationUpdate",
-    "ApplicationStats",
+    # Job
+    "JobBase",
+    "JobCreate",
+    "JobUpdate",
+    "JobResponse",
+    "JobListResponse",
+    "JobFilterParams",
+    # Scan
     "ScanRunCreate",
     "ScanRunResponse",
     "ScanRunDetailResponse",
     "ScanStatusResponse",
+    # AI Config
+    "AIModelConfigBase",
     "AIModelConfigCreate",
     "AIModelConfigUpdate",
     "AIModelConfigResponse",
     "AIModelConfigListResponse",
-
-    "JobResponse",
-    "JobListResponse",
-    "JobFilterParams",
-    "ProfileResponse",
-    "ProfileUpdate",
+    # Profile
     "ExperienceSchema",
-    "ResumeResponse",
+    "EducationSchema",
+    "ProjectSchema",
+    "ProfileBase",
+    "ProfileCreate",
+    "ProfileUpdate",
+    "ProfileResponse",
+    # Resume
+    "ResumeBase",
     "ResumeCreate",
-    "EmailResponse",
+    "ResumeResponse",
+    "ResumeAdaptationRequest",
+    "ResumeAdaptationResponse",
+    # Email
+    "EmailBase",
     "EmailCreate",
-    "ApplicationResponse",
+    "EmailResponse",
+    "EmailDraftRequest",
+    "EmailDraftResponse",
+    "EmailSendRequest",
+    # Application
+    "ApplicationBase",
     "ApplicationCreate",
     "ApplicationUpdate",
+    "ApplicationResponse",
     "ApplicationStats",
+    # Auth
+    "UserRegister",
+    "UserLogin",
+    "UserResponse",
+    "TokenResponse",
+    "TokenData",
 ]

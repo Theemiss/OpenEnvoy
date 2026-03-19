@@ -34,7 +34,7 @@ class LinkedInScraper(BaseScraper):
         if not self.browser:
             playwright = await async_playwright().start()
             self.browser = await playwright.chromium.launch(
-                headless=self.headless,
+                headless=False,
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--disable-dev-shm-usage',
