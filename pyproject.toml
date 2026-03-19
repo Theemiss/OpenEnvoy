@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "ai-job-automation"
+version = "0.1.0"
+description = "AI-Powered Job Application Automation System"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+pydantic = "^2.4.0"
+pydantic-settings = "^2.0.3"
+sqlalchemy = "^2.0.0"
+alembic = "^1.12.0"
+asyncpg = "^0.29.0"
+redis = "^5.0.0"
+boto3 = "^1.28.0"
+python-dotenv = "^1.0.0"
+httpx = "^0.25.0"
+tenacity = "^8.2.0"
+python-multipart = "^0.0.6"
+playwright = "^1.40.0"
+celery = "^5.3.0"
+gunicorn = "^21.2.0"
+python-dateutil = "^2.8.2"
+tiktoken = "^0.5.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+pytest-cov = "^4.1.0"
+black = "^23.11.0"
+isort = "^5.12.0"
+mypy = "^1.7.0"
+pre-commit = "^3.5.0"
+ruff = "^0.1.0"
+factory-boy = "^3.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
