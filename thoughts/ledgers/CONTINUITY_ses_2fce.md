@@ -1,15 +1,15 @@
 ---
 session: ses_2fce
-updated: 2026-03-18T23:57:49.275Z
+updated: 2026-03-19T00:17:26.778Z
 ---
 
 # Session Summary
 
 ## Goal
-Fix all backend bugs blocking frontend integration - specifically ensuring all API endpoints the Next.js frontend expects exist and work correctly in the FastAPI backend.
+Add backend authentication endpoints (registration) to support the frontend auth/signup flow, and verify frontend auth usage is correct.
 
 ## Constraints & Preferences
-- Frontend is read-only (do not modify)
+- Frontend is read-only (do not modify unless necessary)
 - Backend is free to modify/fix/re-implement
 - Follow existing patterns (Pydantic schemas, SQLAlchemy models)
 - Use `model_validate()` instead of deprecated `from_orm()`
@@ -17,88 +17,59 @@ Fix all backend bugs blocking frontend integration - specifically ensuring all A
 
 ## Progress
 ### Done
-- [x] **Fixed `db_manager` not defined error** in `alerting.py` - moved import from inline try block to top-level imports
-- [x] **Rewrote `alerting.py`** completely when incremental edit caused file corruption
-- [x] **Ran database migrations** - `python scripts/init_db.py create` to create all tables
-- [x] **Verified app startup** - App starts successfully with PostgreSQL and Redis
-- [x] **Analyzed frontend API requirements** - Read all frontend API client files to identify required endpoints
-- [x] **Fixed `applications.py`** - Was pointing to profile endpoints (wrong router prefix/code). Rewrote completely with proper application endpoints
-- [x] **Created `schemas/application.py`** - Added `ApplicationCreate`, `ApplicationUpdate`, `ApplicationResponse`, `ApplicationStats` schemas
-- [x] **Created missing endpoints**: `/api/v1/applications`, `/api/v1/applications/{id}`, `/api/v1/applications/{id}/submit`, `/api/v1/applications/stats/summary`
-- [x] **Created `feedback.py` endpoint** - Added `/api/v1/feedback/report` and `/api/v1/feedback/insights`
-- [x] **Created `ai_costs.py` endpoint** - Added `/api/v1/ai/costs/summary`, `/breakdown`, `/daily`, `/recommendations`
-- [x] **Fixed `emails.py`** - Removed duplicate router definition and duplicate `draft_email` function
-- [x] **Fixed `profile.py`** - Was duplicate of applications.py. Rewrote with proper profile endpoints
-- [x] **Fixed `models/resume.py`** - Had duplicate `Resume` model conflicting with `models/profile.py`. Changed to re-export from profile
-- [x] **Fixed `review.py` query param** - Changed `types: Optional[list[str]]` to `types: Optional[str]` with comma-split parsing
-- [x] **Updated endpoint exports** - Added `feedback_router` and `ai_costs_router` to `__init__.py` files
-- [x] **Updated schemas exports** - Added application schemas to `schemas/__init__.py`
-- [x] **Verified all endpoints load** - All routers import successfully
+- [x] **Fixed `/api/v1/review/queue` endpoint** - `review.py` had corrupted/duplicate code. Rewrote completely.
+- [x] **Fixed database session dependency** - Added `get_db()` function to `database.py`, updated all endpoints to use `Depends(get_db)`
+- [x] **Fixed emails.py route ordering** - Moved `/queue/status` before `/{email_id}` to prevent path matching conflicts
+- [x] **Fixed ProfileResponse schema** - Removed relationship fields that caused Pydantic validation errors
+- [x] **Verified all 12 GET endpoints return 200** - jobs, applications, profile, emails, review/queue, review/queue/counts, feedback/report, ai/costs/summary, applications/stats/summary, profile/resumes, health, metrics
+- [x] **Analyzed frontend auth requirements** - Frontend signup page calls `POST /api/v1/auth/register` with `{full_name, email, password}`
+- [x] **Analyzed frontend signin** - Uses NextAuth with credentials provider calling internal `/api/auth/signin`
+- [x] **Created User model** - `models/user.py` with email, hashed_password, full_name, is_active, is_verified, timestamps
+- [x] **Created auth schemas** - `schemas/auth.py` with UserRegister, UserLogin, UserResponse, TokenResponse, TokenData
+- [x] **Created auth endpoints** - `endpoints/auth.py` with `/register`, `/login`, `/me` endpoints
+- [x] **Added auth router to API** - Updated `__init__.py` files to include auth_router
+- [x] **Updated middleware** - Added `/api/v1/auth/*` to public paths in auth middleware
 
 ### In Progress
-- [ ] **Verify `/api/v1/review/queue` endpoint exists** - Listed in frontend but not showing in route list (needs investigation)
+- [ ] **Install bcrypt and python-jose dependencies** - Auth endpoints need these packages for password hashing and JWT
+- [ ] **Create users database table** - Need to run migration or init_db
+- [ ] **Test auth endpoints** - Verify registration and login work
 
 ### Blocked
-- `(none)`
+- **Missing dependencies** - `bcrypt` and `python-jose` are not installed in the venv
 
 ## Key Decisions
-- **Rewrote `applications.py` from scratch**: Original file had profile endpoint code instead of application code - was completely wrong
-- **Created new schema file `schemas/application.py`**: Frontend expects application types that didn't exist in backend schemas
-- **Created new endpoint files**: `feedback.py` and `ai_costs.py` for missing analytics endpoints
-- **Re-export pattern for `models/resume.py`**: Changed duplicate model file to re-export from `profile.py` to resolve SQLAlchemy table conflict
-- **Replaced inline `db_manager` import with top-level**: Was causing `NameError` in `_check_recent_failures` method
+- **JWT-based auth over API key**: Frontend signup calls backend directly with email/password, so JWT tokens are needed for session management
+- **Public auth endpoints in middleware**: Auth endpoints bypass API key requirement so new users can register
+- **Keep bcrypt for password hashing**: Standard Python library for secure password storage
 
 ## Next Steps
-1. **Investigate missing `/api/v1/review/queue` endpoint** - It should exist in `review.py` but isn't showing in registered routes
-2. **Test all endpoints manually** - Hit each endpoint with curl to verify they work
-3. **Check `from_orm()` deprecation** - Still may exist in profile.py or other files (should use `model_validate()`)
-4. **Add `/health` and `/metrics` endpoints to frontend types** - Frontend expects these from backend
+1. Install `bcrypt` and `python-jose` packages
+2. Create users table (run `python scripts/init_db.py create` or create migration)
+3. Test the registration endpoint with curl
+4. Verify the frontend signup flow works end-to-end
 
 ## Critical Context
-- **Frontend API base URL**: `http://localhost:8000` (via `NEXT_PUBLIC_API_URL`)
-- **Frontend expects these endpoints** (from `client.ts`):
-  - Jobs: `GET/POST /api/v1/jobs`, `GET/PATCH/DELETE /api/v1/jobs/{id}`
-  - Applications: `GET /api/v1/applications`, `GET/POST/PATCH /api/v1/applications/{id}`, `POST /api/v1/applications/{id}/submit`, `GET /api/v1/applications/stats/summary`
-  - Review: `GET /api/v1/review/queue`, `GET /api/v1/review/queue/counts`, `POST /api/v1/review/{id}/approve`, `POST /api/v1/review/{id}/reject`
-  - Profile: `GET/PUT /api/v1/profile`, `GET/POST /api/v1/profile/resumes`, `DELETE /api/v1/profile/resumes/{id}`
-  - Emails: `POST /api/v1/emails/draft`, `POST /api/v1/emails/send`, `POST /api/v1/emails/queue`, `GET /api/v1/emails/queue/status`
-  - Analytics: `GET /api/v1/feedback/report`, `GET /api/v1/ai/costs/summary`
-  - Health: `GET /health`, `GET /metrics`
-
-- **Current registered routes confirmed working**:
-  ```
-  GET  /api/v1/ai/costs/summary|breakdown|daily|recommendations
-  GET  /api/v1/applications, POST /api/v1/applications
-  GET  /api/v1/applications/{id}, PATCH /api/v1/applications/{id}
-  POST /api/v1/applications/{id}/submit
-  GET  /api/v1/applications/stats/summary
-  GET  /api/v1/emails, POST /api/v1/emails/draft|send|queue
-  GET  /api/v1/emails/{id}, GET /api/v1/emails/queue/status
-  GET  /api/v1/feedback/report|insights
-  GET  /api/v1/jobs, GET/PATCH/DELETE /api/v1/jobs/{id}
-  GET  /api/v1/profile, PUT /api/v1/profile
-  GET  /api/v1/profile/resumes, POST /api/v1/profile/resumes
-  GET  /api/v1/profile/resumes/{id}, DELETE /api/v1/profile/resumes/{id}
-  GET  /api/v1/review/queue/counts
-  POST /api/v1/review/{id}/approve|reject
-  GET  /health, GET /metrics
-  ```
-
-- **App startup test result**: `INFO: Application startup complete.` (successful)
+- **Frontend API calls**: Signup page calls `POST /api/v1/auth/register` with body `{full_name, email, password}`
+- **Frontend signin**: Uses NextAuth credentials provider (currently demo-only with password='password')
+- **Frontend expects responses**: Registration should return `{access_token, token_type, expires_in, user}`
+- **Backend auth middleware**: Currently requires X-API-Key header for all non-public endpoints
+- **Auth endpoints created**:
+  - `POST /api/v1/auth/register` - Creates user, returns JWT token
+  - `POST /api/v1/auth/login` - Authenticates user, returns JWT token  
+  - `GET /api/v1/auth/me` - Returns current user from JWT token
 
 ## File Operations
 ### Created
-- `/home/boh/ai-job-automation/backend/schemas/application.py` - New schemas for applications
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/feedback.py` - Feedback/insights endpoints
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/ai_costs.py` - AI cost tracking endpoints
+- `/home/boh/ai-job-automation/backend/models/user.py` - User authentication model
+- `/home/boh/ai-job-automation/backend/schemas/auth.py` - Auth request/response schemas
+- `/home/boh/ai-job-automation/backend/api/v1/endpoints/auth.py` - Auth endpoints (register, login, me)
 
 ### Modified
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/applications.py` - Complete rewrite with proper endpoints
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/profile.py` - Complete rewrite
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/emails.py` - Removed duplicates
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/review.py` - Fixed query param type
-- `/home/boh/ai-job-automation/backend/core/alerting.py` - Complete rewrite
-- `/home/boh/ai-job-automation/backend/models/resume.py` - Changed to re-export
-- `/home/boh/ai-job-automation/backend/schemas/__init__.py` - Added application schemas
-- `/home/boh/ai-job-automation/backend/api/v1/__init__.py` - Added new routers
-- `/home/boh/ai-job-automation/backend/api/v1/endpoints/__init__.py` - Added new exports
+- `/home/boh/ai-job-automation/backend/api/v1/__init__.py` - Added auth_router
+- `/home/boh/ai-job-automation/backend/api/v1/endpoints/__init__.py` - Added auth_router import/export
+- `/home/boh/ai-job-automation/backend/api/middleware/auth.py` - Added auth endpoints to public paths
+- `/home/boh/ai-job-automation/backend/api/v1/endpoints/review.py` - Complete rewrite to fix corruption
+- `/home/boh/ai-job-automation/backend/api/v1/endpoints/emails.py` - Route reordering, added `select` import
+- `/home/boh/ai-job-automation/backend/core/database.py` - Added `get_db()` dependency function
+- `/home/boh/ai-job-automation/backend/schemas/profile.py` - Removed relationship fields
