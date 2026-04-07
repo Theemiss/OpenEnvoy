@@ -1,21 +1,64 @@
+# Virtual environments
 venv/
-.env
+.venv/
+env/
+.env.local
+.env.*.local
+
+# Python
 __pycache__/
-*.pyc
-*.pyo
-.DS_Store
-.vscode/
-.idea/
-*.log
-*.sqlite3
-node_modules/
-dist/
-*.egg-info/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
 *.egg
 *.tar.gz
 *.whl
-*/__pycache__/
 *.cover
-backend/__pycache__/*
-backend/*.pyc
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Databases
+*.sqlite3
+*.db
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+.yarn/
+
+# Testing
+.coverage
+htmlcov/
+
+# Misc
+*.bak
+*.tmp
