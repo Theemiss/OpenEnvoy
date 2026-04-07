@@ -408,3 +408,100 @@ async def mark_job_processed(
                 job.last_error = error[:500]
 
             await session.commit()
+
+
+@activity.defn
+async def run_scraping_pipeline(sources: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Run the scraping pipeline for configured sources.
+    
+    Args:
+        sources: Optional list of source names to scrape. If None, runs all.
+    
+    Returns:
+        Dict with scraping results per source.
+    """
+    activity.logger.info(f"Running scraping pipeline for sources: {sources or 'all'}")
+    
+    from ....scrapers.pipeline import ScrapingPipeline
+    
+    pipeline = ScrapingPipeline()
+    
+    try:
+        if sources:
+            results = {}
+            for source in sources:
+                if source in pipeline.scrapers:
+                    scraper = pipeline.scrapers[source]
+                    try:
+                        jobs = await scraper.scrape()
+                        saved_ids = await scraper.save_jobs(jobs)
+                        results[source] = {
+                            "jobs_found": len(jobs),
+                            "jobs_saved": len(saved_ids),
+                            "success": True
+                        }
+                    except Exception as e:
+                        activity.logger.error(f"Error scraping {source}: {str(e)}")
+                        results[source] = {"success": False, "error": str(e)}
+                    finally:
+                        await scraper.close()
+                else:
+                    results[source] = {"success": False, "error": f"Unknown source: {source}"}
+        else:
+            results = await pipeline.run_all()
+            results = {k: {"jobs_found": v, "jobs_saved": v, "success": True} for k, v in results.items()}
+        
+        total_new_jobs = sum(
+            r.get("jobs_saved", 0) for r in results.values() if r.get("success")
+        )
+        
+        activity.logger.info(f"Scraping completed: {total_new_jobs} new jobs")
+        
+        return {
+            "success": True,
+            "results": results,
+            "total_new_jobs": total_new_jobs,
+            "sources_run": list(results.keys())
+        }
+    except Exception as e:
+        activity.logger.error(f"Scraping pipeline failed: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "total_new_jobs": 0
+        }
+
+
+@activity.defn
+async def queue_scraped_jobs_for_processing() -> int:
+    """Queue newly scraped jobs for processing through the job pipeline."""
+    activity.logger.info("Queueing scraped jobs for processing")
+    
+    async with db_manager.session() as session:
+        from sqlalchemy import select, update
+        from ....models.job import Job
+        from ....core.cache import cache
+        
+        stmt = select(Job).where(
+            Job.is_processed == False,
+            Job.is_active == True,
+            Job.process_attempts == 0
+        ).order_by(Job.scraped_at.desc()).limit(100)
+        
+        result = await session.execute(stmt)
+        jobs = result.scalars().all()
+        
+        if not jobs:
+            activity.logger.info("No new jobs to queue")
+            return 0
+        
+        queued_count = 0
+        for job in jobs:
+            await cache.rpush("job_queue", str(job.id))
+            job.is_processed = True
+            queued_count += 1
+        
+        await session.commit()
+        activity.logger.info(f"Queued {queued_count} jobs for processing")
+        
+        return queued_count

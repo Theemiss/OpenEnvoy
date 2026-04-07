@@ -13,8 +13,12 @@ from .endpoints import (
     auth_router,
     ai_configs_router,
     scans_router,
+    ai_tasks_router,
+    webhooks_router,
 )
 
+# Analytics router registration
+from .endpoints.analytics import analytics_router
 api_router = APIRouter()
 
 api_router.include_router(jobs_router)
@@ -27,5 +31,8 @@ api_router.include_router(review_router)
 api_router.include_router(feedback_router)
 api_router.include_router(ai_costs_router)
 api_router.include_router(auth_router)
+api_router.include_router(ai_tasks_router)
+api_router.include_router(webhooks_router)
+api_router.include_router(analytics_router, prefix="/analytics")
 
 __all__ = ["api_router"]

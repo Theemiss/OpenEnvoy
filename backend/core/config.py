@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "AI Job Automation"
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
+    # Optional Sentry DSN for error tracking. If None, Sentry will be disabled gracefully.
+    SENTRY_DSN: Optional[str] = None
     DEBUG: bool = False
     SECRET_KEY: SecretStr = Field(default=..., env="SECRET_KEY")
 

@@ -10,6 +10,8 @@ from .ai_costs import router as ai_costs_router
 from .auth import router as auth_router
 from .ai_configs import router as ai_configs_router
 from .scans import router as scans_router
+from .ai_tasks import router as ai_tasks_router
+from .webhooks import router as webhooks_router
 
 __all__ = [
     "jobs_router",
@@ -22,4 +24,6 @@ __all__ = [
     "auth_router",
     "ai_configs_router",
     "scans_router",
+    "ai_tasks_router",
+    "webhooks_router",
 ]

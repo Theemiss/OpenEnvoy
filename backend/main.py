@@ -10,6 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from .core.config import settings
+from .core.sentry import init_sentry
+from .core.metrics import PrometheusMiddleware, get_metrics, set_queue_size
+import os
 from .core.database import db_manager
 from .core.cache import cache
 from .core.logging import setup_logging
@@ -31,6 +34,13 @@ async def lifespan(app: FastAPI):
     
     # Initialize cache
     await cache.initialize()
+    # Initialize Sentry (graceful if DSN not configured)
+    init_sentry(
+        dsn=settings.SENTRY_DSN,
+        app=app,
+        environment=settings.ENVIRONMENT,
+        release=os.environ.get("RELEASE"),
+    )
     
     # Check health
     health = await alert_manager.check_system_health()
@@ -74,6 +84,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(PrometheusMiddleware)
+
 # Include routers
 app.include_router(api_router, prefix="/api/v1")
 
@@ -97,14 +109,17 @@ async def health_check():
 
 @app.get("/metrics")
 async def metrics():
-    """Basic metrics endpoint."""
-    from .core.cache import cache
-    
-    return {
-        "queue_sizes": {
-            "job_queue": await cache.llen("job_queue"),
-            "email_queue": await cache.llen("email_queue"),
-            "resume_queue": await cache.llen("resume_queue")
-        },
-        "timestamp": datetime.now().isoformat()
-    }
+    """Prometheus metrics endpoint (text/plain format)."""
+    # Update dynamic queue size gauges from cache before exposing metrics
+    try:
+        job_q = await cache.llen("job_queue")
+        email_q = await cache.llen("email_queue")
+        resume_q = await cache.llen("resume_queue")
+        set_queue_size("job_queue", int(job_q))
+        set_queue_size("email_queue", int(email_q))
+        set_queue_size("resume_queue", int(resume_q))
+    except Exception:
+        pass
+    from fastapi.responses import Response
+    content = get_metrics()
+    return Response(content=content, media_type="text/plain; version=0.0.4; charset=utf-8")

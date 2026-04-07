@@ -1,5 +1,6 @@
 """Temporal workflow definitions for job automation."""
 
+import asyncio
 from datetime import timedelta
 from typing import List, Dict, Any, Optional
 
@@ -15,7 +16,9 @@ with workflow.unsafe.imports_passed_through():
         draft_application_email,
         create_application_record,
         queue_for_human_review,
-        mark_job_processed
+        mark_job_processed,
+        run_scraping_pipeline,
+        queue_scraped_jobs_for_processing,
     )
 
 
@@ -233,34 +236,67 @@ class BatchJobProcessingWorkflow:
 
 
 @workflow.defn
-class ScheduledScrapingWorkflow:
-    """Workflow that runs on a schedule to trigger scraping."""
+class ScrapingWorkflow:
+    """Workflow for running the scraping pipeline."""
     
     @workflow.run
-    async def run(self) -> Dict[str, Any]:
-        """Run scheduled scraping."""
+    async def run(self, sources: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Run scraping pipeline and queue jobs for processing."""
         
-        workflow.logger.info("Starting scheduled scraping")
+        workflow.logger.info(f"Starting scraping workflow for sources: {sources or 'all'}")
         
-        # Start scraping workflow
-        scrape_result = await workflow.execute_child_workflow(
-            "ScrapingWorkflow",  # You'd need to define this
-            id=f"scrape-{workflow.now().strftime('%Y%m%d-%H')}",
-            task_queue="scraping-queue"
+        scrape_result = await workflow.execute_activity(
+            run_scraping_pipeline,
+            sources,
+            start_to_close_timeout=timedelta(minutes=30)
         )
         
-        # After scraping, start batch processing
-        if scrape_result.get("new_jobs_count", 0) > 0:
-            await workflow.execute_child_workflow(
-                BatchJobProcessingWorkflow.run,
-                profile_id=1,  # Get from config
-                batch_size=50,
-                id=f"batch-{workflow.now().strftime('%Y%m%d-%H')}",
-                task_queue="job-processing-queue"
+        queued_count = 0
+        if scrape_result.get("success") and scrape_result.get("total_new_jobs", 0) > 0:
+            queued_count = await workflow.execute_activity(
+                queue_scraped_jobs_for_processing,
+                start_to_close_timeout=timedelta(minutes=5)
             )
         
         return {
             "scrape_result": scrape_result,
+            "jobs_queued": queued_count,
+            "timestamp": workflow.now().isoformat()
+        }
+
+
+@workflow.defn
+class ScheduledScrapingWorkflow:
+    """Workflow that runs on a schedule to trigger scraping."""
+    
+    @workflow.run
+    async def run(self, profile_id: int = 1) -> Dict[str, Any]:
+        """Run scheduled scraping with automatic job processing."""
+        
+        workflow.logger.info("Starting scheduled scraping workflow")
+        
+        scrape_result = await workflow.execute_activity(
+            run_scraping_pipeline,
+            None,
+            start_to_close_timeout=timedelta(minutes=30)
+        )
+        
+        if scrape_result.get("total_new_jobs", 0) > 0:
+            workflow.logger.info(f"Found {scrape_result['total_new_jobs']} new jobs, starting batch processing")
+            
+            batch_result = await workflow.execute_child_workflow(
+                BatchJobProcessingWorkflow.run,
+                profile_id,
+                batch_size=50,
+                id=f"batch-{workflow.now().strftime('%Y%m%d-%H%M%S')}",
+                task_queue="job-processing-queue"
+            )
+        else:
+            batch_result = {"status": "no_jobs", "processed_count": 0}
+        
+        return {
+            "scrape_result": scrape_result,
+            "batch_result": batch_result,
             "timestamp": workflow.now().isoformat()
         }
 
